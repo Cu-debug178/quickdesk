@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuizDesk · Java Web 刷题</title>
+<link rel="stylesheet" href="style.css?v=2.2">
+</head>
+<body>
+<header class="topbar">
+  <h1>🎯 QuizDesk</h1>
+  <span id="bank-name" class="bank-name"></span>
+</header>
+
+<div class="layout">
+  <aside class="panel" id="panel">
+    <section class="panel-block" id="bank-block" style="display:none">
+      <h2>题库</h2>
+      <select id="bank-select" style="width:100%;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-size:14px"></select>
+    </section>
+    <section class="panel-block">
+      <h2>来源</h2>
+      <div id="source-filters" class="filter-list"></div>
+    </section>
+    <section class="panel-block">
+      <h2>题型</h2>
+      <div id="type-filters" class="filter-list"></div>
+    </section>
+    <section class="panel-block">
+      <h2>模式</h2>
+      <label class="switch-row"><input type="checkbox" id="shuffle"> 乱序练习</label>
+      <label class="switch-row"><input type="checkbox" id="only-wrong"> 只练错题</label>
+      <button id="restart" class="btn ghost">重新开始本轮</button>
+    </section>
+    <section class="panel-block" id="sync-block" style="display:none">
+      <h2>错题云同步</h2>
+      <div class="row-btns">
+        <button id="sync-push" class="btn ghost">↑ 上传错题</button>
+        <button id="sync-pull" class="btn ghost">↓ 拉取错题</button>
+      </div>
+      <div id="sync-msg" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+    </section>
+    <section class="panel-block stats">
+      <h2>本轮成绩</h2>
+      <div>已答 <b id="stat-done">0</b> / <span id="stat-total">0</span></div>
+      <div>答对 <b id="stat-right" class="ok">0</b> · 答错 <b id="stat-wrong" class="bad">0</b></div>
+      <div>正确率 <b id="stat-rate">—</b></div>
+    </section>
+    <footer class="panel-note">键盘操作：按 1~9 或 A~D 选选项，Enter 提交/下一题，←→ 翻题。题目旁的 ⚠ 表示该题答案来自学生标记、未经核实；缺失答案的题不参与判分。错题记录保存在本机浏览器。</footer>
+  </aside>
+
+  <main class="main">
+    <div class="progress-wrap"><div id="progress-bar"></div></div>
+    <article class="card" id="question-card">
+      <div class="card-head">
+        <span id="q-source" class="tag"></span>
+        <span id="q-type" class="tag"></span>
+        <span id="q-score" class="tag"></span>
+        <span id="q-verify" class="tag warn hidden">⚠ 答案未经核实</span>
+        <span class="q-no" id="q-no"></span>
+      </div>
+      <div id="q-stem" class="stem"></div>
+      <div id="q-options" class="options"></div>
+      <div id="q-fill" class="fill hidden">
+        <input id="fill-input" type="text" placeholder="在此输入答案" autocomplete="off">
+      </div>
+      <div class="actions">
+        <button id="btn-check" class="btn primary">提交答案</button>
+        <button id="btn-prev" class="btn">上一题</button>
+        <button id="btn-next" class="btn">下一题</button>
+      </div>
+      <div id="feedback" class="feedback hidden"></div>
+    </article>
+    <p class="empty hidden" id="empty-tip">当前筛选条件下没有题目，请在左侧调整筛选。</p>
+  </main>
+</div>
+
+<script src="data.js?v=2.2"></script>
+<script src="app.js?v=2.2"></script>
+</body>
+</html>
