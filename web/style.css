@@ -135,3 +135,38 @@ body {
   .layout { flex-direction: column; padding: 12px; }
   .panel { width: 100%; position: static; }
 }
+
+/* ---------- 折叠面板 ---------- */
+.foldable { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 4px; }
+.foldable .caret { display: inline-block; transition: transform .2s; font-size: 11px; color: var(--muted); }
+.foldable.folded .caret { transform: rotate(-90deg); }
+.foldable.folded + .fold-body { display: none !important; }
+
+/* ---------- 重点/分类迷你按钮 ---------- */
+.mini-btn {
+  font-size: 12px; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: #fff; color: var(--muted);
+  cursor: pointer; transition: all .15s;
+}
+.mini-btn:hover { border-color: var(--accent); color: var(--accent); }
+.mini-btn.on { background: #fef9c3; border-color: #f59e0b; color: #b45309; }
+
+/* ---------- 类别弹层与类别管理 ---------- */
+.cat-pop {
+  margin-top: 14px; padding: 12px 14px;
+  border: 1.5px solid var(--accent); border-radius: 10px; background: #f8faff;
+}
+.cat-pop .cat-row { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 4px 2px; cursor: pointer; }
+.cat-pop .empty-tip2, .filter-list .empty-tip2 { color: var(--muted); font-size: 13px; line-height: 1.6; padding: 4px 0; }
+.cat-add { display: flex; gap: 6px; margin-top: 8px; }
+.cat-add input {
+  flex: 1; min-width: 0; padding: 7px 10px;
+  border: 1.5px solid var(--line); border-radius: 8px; font-size: 13px; outline: none;
+}
+.cat-add input:focus { border-color: var(--accent); }
+.cat-add .btn { width: auto; margin-top: 0; padding: 7px 14px; font-size: 13px; }
+.filter-list .del-cat {
+  margin-left: 2px; color: var(--muted); border: 0; background: none;
+  cursor: pointer; font-size: 12px; padding: 0 4px;
+}
+.filter-list .del-cat:hover { color: var(--bad); }
