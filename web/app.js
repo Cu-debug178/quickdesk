@@ -1,10 +1,13 @@
-/* QuizDesk 网页版 —— 纯静态刷题应用，无需后端 */
+/* QuizDesk 网页版 —— 纯静态可用，检测到后端 API 时自动进入服务器模式 */
 (function () {
   'use strict';
 
   var bank = window.QUESTION_BANK || {};
   var questions = bank.questions || [];
   var WRONG_KEY = 'quizdesk_wrong_ids';
+  var DEVICE_KEY = 'quizdesk_device_id';
+  var BANK_KEY = 'quizdesk_bank_id';
+  var SERVER_MODE = false;
 
   /* ---------- 状态 ---------- */
   var state = {
@@ -30,6 +33,37 @@
     localStorage.setItem(WRONG_KEY, JSON.stringify(Array.from(set)));
   }
   var wrongSet = loadWrong();
+
+  function deviceId() {
+    var id = localStorage.getItem(DEVICE_KEY);
+    if (!id) {
+      id = 'dev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem(DEVICE_KEY, id);
+    }
+    return id;
+  }
+  function syncMsg(text) { $('sync-msg').textContent = text; }
+
+  function uploadWrong() {
+    fetch('/api/wrong/' + encodeURIComponent(deviceId()), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: Array.from(wrongSet) })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      syncMsg('已上传 ' + (d.ids ? d.ids.length : wrongSet.size) + ' 道错题');
+    }).catch(function () { syncMsg('上传失败，检查网络'); });
+  }
+  function pullWrong() {
+    fetch('/api/wrong/' + encodeURIComponent(deviceId()))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        (d.ids || []).forEach(function (i) { wrongSet.add(i); });
+        saveWrong(wrongSet);
+        syncMsg('已拉取，错题本共 ' + wrongSet.size + ' 题');
+        rebuildOrder(false);
+      })
+      .catch(function () { syncMsg('拉取失败，检查网络'); });
+  }
 
   /* 填空题归一化：去空白/引号、全角转半角、去掉 (1) 类题号前缀、忽略大小写与末尾标点 */
   function normFill(s) {
@@ -67,10 +101,14 @@
 
   /* ---------- 列表构建 ---------- */
   var allSources = [], allTypes = [];
-  questions.forEach(function (q) {
-    if (allSources.indexOf(q.source) === -1) allSources.push(q.source);
-    if (allTypes.indexOf(q.type) === -1) allTypes.push(q.type);
-  });
+  function collectFacets() {
+    allSources = []; allTypes = [];
+    questions.forEach(function (q) {
+      if (allSources.indexOf(q.source) === -1) allSources.push(q.source);
+      if (allTypes.indexOf(q.type) === -1) allTypes.push(q.type);
+    });
+  }
+  collectFacets();
 
   function filtered() {
     var list = questions.filter(function (q) {
@@ -273,9 +311,69 @@
     rebuildOrder(false);
   });
 
-  /* ---------- 启动 ---------- */
-  $('bank-name').textContent = (bank.bank && bank.bank.name || '') +
-    ' · 共 ' + questions.length + ' 题';
-  buildFilters();
-  rebuildOrder(false);
+  /* ---------- 题库切换与启动 ---------- */
+  function setBank(doc) {
+    bank = doc || { questions: [] };
+    questions = bank.questions || [];
+    collectFacets();
+    state.sources.clear(); state.types.clear();
+    state.answers = {};
+    state.session = { done: 0, right: 0, wrong: 0 };
+    $('bank-name').textContent = ((bank.bank && bank.bank.name) || '题库') +
+      ' · 共 ' + questions.length + ' 题';
+    buildFilters();
+    rebuildOrder(false);
+  }
+
+  var booted = false;
+  function initEmbedded() {
+    if (booted) return;
+    booted = true;
+    setBank(window.QUESTION_BANK);
+  }
+  function initServer(banks) {
+    if (booted) return;
+    booted = true;
+    SERVER_MODE = true;
+    var sel = $('bank-select');
+    sel.innerHTML = '';
+    banks.forEach(function (b) {
+      var opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = (b.name || b.id) + '（' + (b.count != null ? b.count : '?') + ' 题）';
+      sel.appendChild(opt);
+    });
+    var last = localStorage.getItem(BANK_KEY);
+    if (last && banks.some(function (b) { return b.id === last; })) sel.value = last;
+    $('bank-block').style.display = '';
+    $('sync-block').style.display = '';
+    sel.addEventListener('change', function () {
+      localStorage.setItem(BANK_KEY, sel.value);
+      loadServerBank(sel.value);
+    });
+    $('sync-push').addEventListener('click', uploadWrong);
+    $('sync-pull').addEventListener('click', pullWrong);
+    loadServerBank(sel.value);
+  }
+  function loadServerBank(id) {
+    $('bank-name').textContent = '题库加载中…';
+    fetch('/api/bank/' + encodeURIComponent(id))
+      .then(function (r) { return r.json(); })
+      .then(function (doc) { setBank(doc); })
+      .catch(function () { $('bank-name').textContent = '题库加载失败，请刷新重试'; });
+  }
+
+  (function boot() {
+    var timer = setTimeout(initEmbedded, 2000);   // 无后端（file:// 或纯静态托管）时兜底
+    fetch('/api/banks').then(function (r) {
+      return r.ok ? r.json() : null;
+    }).then(function (d) {
+      clearTimeout(timer);
+      if (d && d.banks && d.banks.length) initServer(d.banks);
+      else initEmbedded();
+    }).catch(function () {
+      clearTimeout(timer);
+      initEmbedded();
+    });
+  })();
 })();

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuizDesk 管理后台</title>
+<style>
+  :root { --line:#e5e8f0; --accent:#2f6fed; --ok:#16a34a; --bad:#dc2626; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; background:#f4f6fb; color:#1f2430; padding:24px; }
+  .box { max-width:760px; margin:0 auto; background:#fff; border:1px solid var(--line); border-radius:14px; padding:24px; }
+  h1 { font-size:20px; margin-bottom:6px; }
+  .hint { color:#6b7280; font-size:13px; margin-bottom:18px; }
+  label { display:block; font-size:13px; color:#6b7280; margin:14px 0 6px; }
+  input, textarea { width:100%; border:1.5px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14px; outline:none; font-family:inherit; }
+  input:focus, textarea:focus { border-color:var(--accent); }
+  textarea { min-height:120px; font-family:ui-monospace,monospace; }
+  .row { display:flex; gap:10px; }
+  .row > * { flex:1; }
+  button { padding:11px 20px; border:0; border-radius:10px; background:var(--accent); color:#fff; font-size:14px; cursor:pointer; margin-top:14px; }
+  button.sec { background:#eef3fe; color:var(--accent); }
+  #msg { margin-top:14px; padding:12px; border-radius:10px; font-size:14px; display:none; }
+  #msg.ok { display:block; background:#ecfdf3; color:var(--ok); }
+  #msg.bad { display:block; background:#fef2f2; color:var(--bad); }
+  table { width:100%; border-collapse:collapse; margin-top:10px; font-size:14px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); }
+  th { color:#6b7280; font-weight:500; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>🛠 QuizDesk 管理后台</h1>
+  <p class="hint">在这里更新题库：选一个 JSON 文件（或粘贴内容），填入管理令牌后保存。更新立即生效，无需重启。</p>
+
+  <label>管理令牌（部署时设置的 ADMIN_TOKEN）</label>
+  <input id="token" type="password" placeholder="输入管理令牌">
+
+  <label>题库 ID（英文数字和 - ，例如 java-web；相同 ID 会覆盖更新）</label>
+  <input id="bank-id" value="java-web">
+
+  <label>选择题库 JSON 文件</label>
+  <input id="file" type="file" accept=".json,application/json">
+
+  <label>或直接粘贴题库 JSON</label>
+  <textarea id="content" placeholder='{"bank":{...},"questions":[...] }'></textarea>
+
+  <div class="row">
+    <button id="save">保存题库</button>
+    <button id="load" class="sec">载入现有题库修改</button>
+  </div>
+  <div id="msg"></div>
+
+  <label>服务器上的题库</label>
+  <table id="bank-table">
+    <thead><tr><th>ID</th><th>名称</th><th>题数</th><th>更新时间</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function msg(text, ok) {
+    var el = $('msg');
+    el.textContent = text;
+    el.className = ok ? 'ok' : 'bad';
+  }
+
+  function refreshList() {
+    fetch('/api/banks').then(function (r) { return r.json(); }).then(function (d) {
+      var tb = $('bank-table').querySelector('tbody');
+      tb.innerHTML = '';
+      (d.banks || []).forEach(function (b) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + (b.id || '') + '</td><td>' + (b.name || '') + '</td><td>' +
+          (b.count != null ? b.count : '') + '</td><td>' + (b.updatedAt || b.version || '') + '</td>';
+        tb.appendChild(tr);
+      });
+    });
+  }
+
+  $('file').addEventListener('change', function () {
+    var f = this.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () { $('content').value = reader.result; };
+    reader.readAsText(f, 'utf-8');
+  });
+
+  $('save').addEventListener('click', function () {
+    var id = $('bank-id').value.trim();
+    if (!/^[a-z0-9-]{1,64}$/.test(id)) return msg('题库 ID 只能是小写字母、数字和 -', false);
+    var doc;
+    try { doc = JSON.parse($('content').value); }
+    catch (e) { return msg('JSON 格式错误：' + e.message, false); }
+    if (!doc.questions || !doc.questions.length) return msg('JSON 里没有 questions 数组', false);
+    fetch('/api/bank/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': $('token').value },
+      body: JSON.stringify(doc)
+    }).then(function (r) { return r.json().then(function (d) { return { code: r.status, d: d }; }); })
+      .then(function (r) {
+        if (r.code === 200) { msg('✅ 已保存：' + r.d.count + ' 题，版本 ' + r.d.version, true); refreshList(); }
+        else msg('保存失败：' + (r.d.error || r.code), false);
+      })
+      .catch(function (e) { msg('网络错误：' + e, false); });
+  });
+
+  $('load').addEventListener('click', function () {
+    var id = $('bank-id').value.trim();
+    if (!id) return msg('先填写题库 ID', false);
+    fetch('/api/bank/' + id).then(function (r) { return r.json(); }).then(function (d) {
+      $('content').value = JSON.stringify(d, null, 2);
+      msg('已载入 ' + ((d.questions || []).length) + ' 题，修改后点保存', true);
+    }).catch(function (e) { msg('载入失败：' + e, false); });
+  });
+
+  refreshList();
+})();
+</script>
+</body>
+</html>

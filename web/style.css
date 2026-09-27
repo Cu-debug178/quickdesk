@@ -100,6 +100,8 @@ body {
 .btn.primary:hover { opacity: .9; color: #fff; }
 .btn.primary:disabled { opacity: .5; cursor: not-allowed; }
 .btn.ghost { width: 100%; margin-top: 6px; }
+.row-btns { display: flex; gap: 8px; }
+.row-btns .btn { margin-top: 0; }
 
 .feedback { margin-top: 16px; padding: 14px; border-radius: 10px; font-size: 14px; line-height: 1.7; }
 .feedback.ok { background: #ecfdf3; color: var(--ok); }

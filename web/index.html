@@ -14,6 +14,10 @@
 
 <div class="layout">
   <aside class="panel" id="panel">
+    <section class="panel-block" id="bank-block" style="display:none">
+      <h2>题库</h2>
+      <select id="bank-select" style="width:100%;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-size:14px"></select>
+    </section>
     <section class="panel-block">
       <h2>来源</h2>
       <div id="source-filters" class="filter-list"></div>
@@ -28,13 +32,21 @@
       <label class="switch-row"><input type="checkbox" id="only-wrong"> 只练错题</label>
       <button id="restart" class="btn ghost">重新开始本轮</button>
     </section>
+    <section class="panel-block" id="sync-block" style="display:none">
+      <h2>错题云同步</h2>
+      <div class="row-btns">
+        <button id="sync-push" class="btn ghost">↑ 上传错题</button>
+        <button id="sync-pull" class="btn ghost">↓ 拉取错题</button>
+      </div>
+      <div id="sync-msg" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+    </section>
     <section class="panel-block stats">
       <h2>本轮成绩</h2>
       <div>已答 <b id="stat-done">0</b> / <span id="stat-total">0</span></div>
       <div>答对 <b id="stat-right" class="ok">0</b> · 答错 <b id="stat-wrong" class="bad">0</b></div>
       <div>正确率 <b id="stat-rate">—</b></div>
     </section>
-    <footer class="panel-note">题库含 50 题答案来自学生标记、未经核实，题目旁会标注 ⚠；1 题缺失答案不参与判分。</footer>
+    <footer class="panel-note">题目旁的 ⚠ 表示该题答案来自学生标记、未经核实；缺失答案的题不参与判分。错题记录保存在本机浏览器。</footer>
   </aside>
 
   <main class="main">
