@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuizDesk · Java Web 刷题</title>
-<link rel="stylesheet" href="style.css?v=2.3">
+<link rel="stylesheet" href="style.css?v=2.4">
 </head>
 <body>
 <header class="topbar">
@@ -19,17 +19,28 @@
       <select id="bank-select" style="width:100%;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-size:14px"></select>
     </section>
     <section class="panel-block">
-      <h2>来源</h2>
-      <div id="source-filters" class="filter-list"></div>
+      <h2 class="foldable" data-fold="sources"><span class="caret">▾</span> 来源</h2>
+      <div id="source-filters" class="filter-list fold-body"></div>
     </section>
     <section class="panel-block">
-      <h2>题型</h2>
-      <div id="type-filters" class="filter-list"></div>
+      <h2 class="foldable" data-fold="types"><span class="caret">▾</span> 题型</h2>
+      <div id="type-filters" class="filter-list fold-body"></div>
+    </section>
+    <section class="panel-block">
+      <h2 class="foldable" data-fold="cats"><span class="caret">▾</span> 自定义类别</h2>
+      <div class="fold-body">
+        <div id="cat-filters" class="filter-list"></div>
+        <div class="cat-add">
+          <input id="cat-name" type="text" placeholder="新类别名称" maxlength="20">
+          <button id="cat-add" class="btn ghost">添加</button>
+        </div>
+      </div>
     </section>
     <section class="panel-block">
       <h2>模式</h2>
       <label class="switch-row"><input type="checkbox" id="shuffle"> 乱序练习</label>
       <label class="switch-row"><input type="checkbox" id="only-wrong"> 只练错题</label>
+      <label class="switch-row"><input type="checkbox" id="only-star"> 只练重点 ⭐</label>
       <button id="restart" class="btn ghost">重新开始本轮</button>
     </section>
     <section class="panel-block" id="sync-block" style="display:none">
@@ -46,7 +57,7 @@
       <div>答对 <b id="stat-right" class="ok">0</b> · 答错 <b id="stat-wrong" class="bad">0</b></div>
       <div>正确率 <b id="stat-rate">—</b></div>
     </section>
-    <footer class="panel-note">键盘操作：按 1~9 或 A~D 选选项，Enter 提交/下一题，←→ 翻题。题目旁的 ⚠ 表示该题答案来自学生标记、未经核实；缺失答案的题不参与判分。错题记录保存在本机浏览器。</footer>
+    <footer class="panel-note">键盘操作：按 1~9 或 A~D 选选项，Enter 提交/下一题，←→ 翻题，F 标记重点。题目旁的 ⚠ 表示该题答案来自学生标记、未经核实；缺失答案的题不参与判分。错题记录保存在本机浏览器。</footer>
   </aside>
 
   <main class="main">
@@ -57,6 +68,8 @@
         <span id="q-type" class="tag"></span>
         <span id="q-score" class="tag"></span>
         <span id="q-verify" class="tag warn hidden">⚠ 答案未经核实</span>
+        <button id="q-star" class="mini-btn" title="标记/取消重点（快捷键 F）">☆ 重点</button>
+        <button id="q-cats" class="mini-btn" title="归入自定义类别">🏷 分类</button>
         <span class="q-no" id="q-no"></span>
       </div>
       <div id="q-stem" class="stem"></div>
@@ -70,13 +83,14 @@
         <button id="btn-next" class="btn">下一题</button>
       </div>
       <div id="feedback" class="feedback hidden"></div>
+      <div id="cat-pop" class="cat-pop hidden"></div>
     </article>
     <p class="empty hidden" id="empty-tip">当前筛选条件下没有题目，请在左侧调整筛选。</p>
   </main>
 </div>
 
-<script src="data.js?v=2.3"></script>
+<script src="data.js?v=2.4"></script>
 <script src="vendor/anime.min.js"></script>
-<script src="app.js?v=2.3"></script>
+<script src="app.js?v=2.4"></script>
 </body>
 </html>

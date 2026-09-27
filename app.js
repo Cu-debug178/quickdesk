@@ -19,6 +19,7 @@
   var state = {
     sources: new Set(),      // 勾选的来源，空 = 全部
     types: new Set(),        // 勾选的题型，空 = 全部
+    cats: new Set(),         // 勾选的自定义类别（任一命中即显示）
     order: [],               // 当前题目 id 顺序
     idx: 0,
     answers: {},             // id -> {selected, input, checked, correct}
@@ -39,6 +40,48 @@
     localStorage.setItem(WRONG_KEY, JSON.stringify(Array.from(set)));
   }
   var wrongSet = loadWrong();
+
+  /* ---------- 标记存储：重点 + 自定义类别（按题库隔离，存本机浏览器） ---------- */
+  var MARKS_KEY = 'quizdesk_marks';
+  var FOLD_KEY = 'quizdesk_fold';
+  var bankId = (bank.bank && bank.bank.id) || 'default';
+  var marks = (function () {
+    try { return JSON.parse(localStorage.getItem(MARKS_KEY) || '{}'); }
+    catch (e) { return {}; }
+  })();
+  function m() {
+    if (!marks[bankId]) marks[bankId] = { star: [], cats: {} };
+    if (!Array.isArray(marks[bankId].star)) marks[bankId].star = [];
+    if (!marks[bankId].cats || typeof marks[bankId].cats !== 'object') marks[bankId].cats = {};
+    return marks[bankId];
+  }
+  function saveMarks() { localStorage.setItem(MARKS_KEY, JSON.stringify(marks)); }
+  function isStarred(id) { return m().star.indexOf(id) !== -1; }
+  function toggleStar(id) {
+    var a = m().star, i = a.indexOf(id);
+    if (i === -1) a.push(id); else a.splice(i, 1);
+    saveMarks();
+  }
+  function catNames() { return Object.keys(m().cats); }
+  function setCatsFor(id, name, on) {
+    var arr = m().cats[name] || (m().cats[name] = []);
+    var i = arr.indexOf(id);
+    if (on && i === -1) arr.push(id);
+    if (!on && i !== -1) arr.splice(i, 1);
+    saveMarks();
+  }
+  function addCat(name) {
+    name = String(name || '').trim();
+    if (!name || m().cats[name]) return false;
+    m().cats[name] = [];
+    saveMarks();
+    return true;
+  }
+  function delCat(name) {
+    delete m().cats[name];
+    state.cats.delete(name);
+    saveMarks();
+  }
 
   function deviceId() {
     var id = localStorage.getItem(DEVICE_KEY);
@@ -121,6 +164,13 @@
       if (state.sources.size && !state.sources.has(q.source)) return false;
       if (state.types.size && !state.types.has(q.type)) return false;
       if ($('only-wrong').checked && !wrongSet.has(q.id)) return false;
+      if ($('only-star').checked && !isStarred(q.id)) return false;
+      if (state.cats.size) {
+        var inAny = catNames().some(function (n) {
+          return state.cats.has(n) && (m().cats[n] || []).indexOf(q.id) !== -1;
+        });
+        if (!inAny) return false;
+      }
       return true;
     });
     if ($('shuffle').checked) {
@@ -170,6 +220,35 @@
         rebuildOrder(false);
       });
       tf.appendChild(label);
+    });
+    buildCats();
+  }
+
+  function buildCats() {
+    var box = $('cat-filters');
+    box.innerHTML = '';
+    var names = catNames();
+    if (!names.length) {
+      box.innerHTML = '<div class="empty-tip2">还没有类别：在下方添加（如"第一章""易错"），然后在题目上点 🏷 归类。</div>';
+      return;
+    }
+    names.forEach(function (n) {
+      var cnt = (m().cats[n] || []).length;
+      var label = document.createElement('label');
+      label.innerHTML = '<input type="checkbox" value="' + esc(n) + '"' +
+        (state.cats.has(n) ? ' checked' : '') + '> <span>🏷 ' + esc(n) + '</span><span class="count">' + cnt +
+        '</span><button class="del-cat" title="删除该类别">✕</button>';
+      label.querySelector('input').addEventListener('change', function () {
+        if (this.checked) state.cats.add(n); else state.cats.delete(n);
+        rebuildOrder(false);
+      });
+      label.querySelector('.del-cat').addEventListener('click', function (e) {
+        e.preventDefault();
+        delCat(n);
+        buildCats();
+        rebuildOrder(false);
+      });
+      box.appendChild(label);
     });
   }
 
@@ -236,6 +315,9 @@
     $('q-type').textContent = q.type + ' · ' + (q.score || 0) + ' 分';
     $('q-no').textContent = (state.idx + 1) + ' / ' + state.order.length;
     $('q-verify').classList.toggle('hidden', q.answerStatus !== 'student_marked_unverified');
+    var starBtn = $('q-star');
+    starBtn.classList.toggle('on', isStarred(q.id));
+    starBtn.textContent = isStarred(q.id) ? '★ 重点' : '☆ 重点';
     $('q-stem').textContent = q.stem || '(缺少题干)';
 
     var isChoice = q.options && q.options.length > 0;
@@ -279,7 +361,11 @@
     var pct = state.order.length ? Math.round(((state.idx + 1) / state.order.length) * 100) : 0;
     $('progress-bar').style.width = pct + '%';
 
-    if (q.id !== lastQid) { lastQid = q.id; animateQuestionIn(); }
+    if (q.id !== lastQid) {
+      lastQid = q.id;
+      $('cat-pop').classList.add('hidden');
+      animateQuestionIn();
+    }
   }
 
   function renderFeedback(q, rec) {
@@ -356,6 +442,69 @@
   });
   $('shuffle').addEventListener('change', function () { rebuildOrder(false); });
   $('only-wrong').addEventListener('change', function () { rebuildOrder(false); });
+  $('only-star').addEventListener('change', function () { rebuildOrder(false); });
+
+  $('q-star').addEventListener('click', function () {
+    if (!current) return;
+    toggleStar(current.id);
+    render();
+  });
+
+  function renderCatPop() {
+    var pop = $('cat-pop');
+    if (pop.classList.contains('hidden') || !current) return;
+    var names = catNames();
+    pop.innerHTML = names.length ? '' :
+      '<div class="empty-tip2">还没有类别，先去左侧"自定义类别"添加一个。</div>';
+    names.forEach(function (n) {
+      var on = (m().cats[n] || []).indexOf(current.id) !== -1;
+      var row = document.createElement('label');
+      row.className = 'cat-row';
+      row.innerHTML = '<input type="checkbox"' + (on ? ' checked' : '') + '> <span>' + esc(n) + '</span>';
+      row.querySelector('input').addEventListener('change', function () {
+        setCatsFor(current.id, n, this.checked);
+        buildCats();
+      });
+      pop.appendChild(row);
+    });
+  }
+  $('q-cats').addEventListener('click', function (e) {
+    e.stopPropagation();
+    var pop = $('cat-pop');
+    pop.classList.toggle('hidden');
+    renderCatPop();
+  });
+  document.addEventListener('click', function (e) {
+    var pop = $('cat-pop');
+    if (!pop.classList.contains('hidden') && !pop.contains(e.target) &&
+        e.target !== $('q-cats') && !$('q-cats').contains(e.target)) {
+      pop.classList.add('hidden');
+    }
+  });
+
+  $('cat-add').addEventListener('click', function () {
+    var inp = $('cat-name');
+    if (addCat(inp.value)) { inp.value = ''; buildCats(); }
+    else inp.focus();
+  });
+  $('cat-name').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') $('cat-add').click();
+  });
+
+  /* 折叠面板：状态持久化 */
+  (function initFolds() {
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(FOLD_KEY) || '{}'); } catch (e) {}
+    Array.prototype.forEach.call(document.querySelectorAll('.foldable'), function (h) {
+      var key = h.getAttribute('data-fold');
+      if (saved[key]) h.classList.add('folded');
+      h.addEventListener('click', function () {
+        h.classList.toggle('folded');
+        saved[key] = h.classList.contains('folded');
+        localStorage.setItem(FOLD_KEY, JSON.stringify(saved));
+      });
+    });
+  })();
   $('restart').addEventListener('click', function () {
     state.answers = {};
     state.session = { done: 0, right: 0, wrong: 0 };
@@ -374,6 +523,7 @@
   document.addEventListener('keydown', function (e) {
     if (e.target === $('fill-input') || e.ctrlKey || e.metaKey || e.altKey) return;
     if (/^[1-9]$/.test(e.key)) { selectByIndex(Number(e.key) - 1); return; }
+    if (/^[fF]$/.test(e.key) && current) { toggleStar(current.id); render(); return; }
     if (/^[a-dA-D]$/.test(e.key)) {
       var i = 'abcd'.indexOf(e.key.toLowerCase());
       if (current && i < current.options.length) selectByIndex(i);
@@ -394,8 +544,9 @@
   function setBank(doc) {
     bank = doc || { questions: [] };
     questions = bank.questions || [];
+    bankId = (doc.bank && doc.bank.id) || bankId;
     collectFacets();
-    state.sources.clear(); state.types.clear();
+    state.sources.clear(); state.types.clear(); state.cats.clear();
     state.answers = {};
     state.session = { done: 0, right: 0, wrong: 0 };
     $('bank-name').textContent = ((bank.bank && bank.bank.name) || '题库') +
