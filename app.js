@@ -9,6 +9,12 @@
   var BANK_KEY = 'quizdesk_bank_id';
   var SERVER_MODE = false;
 
+  /* 动效：Anime.js 驱动；用户系统开启"减弱动态效果"时自动禁用 */
+  var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var ANIME = (typeof window.anime === 'function' && !REDUCED) ? window.anime : null;
+  var lastQid = null;
+  var prevStats = { done: 0, right: 0, wrong: 0 };
+
   /* ---------- 状态 ---------- */
   var state = {
     sources: new Set(),      // 勾选的来源，空 = 全部
@@ -167,6 +173,47 @@
     });
   }
 
+  /* ---------- 动效（Anime.js） ---------- */
+  function animateQuestionIn() {
+    if (!ANIME) return;
+    ANIME({
+      targets: '#question-card',
+      opacity: [0, 1], translateY: [18, 0],
+      duration: 380, easing: 'easeOutCubic'
+    });
+    ANIME({
+      targets: '#q-options .option',
+      opacity: [0, 1], translateX: [-14, 0],
+      delay: ANIME.stagger(55),
+      duration: 320, easing: 'easeOutQuad'
+    });
+  }
+  function animateFeedback(ok) {
+    if (!ANIME) return;
+    if (ok === true) {
+      ANIME({ targets: '#feedback', scale: [0.92, 1], opacity: [0, 1], duration: 340, easing: 'easeOutBack' });
+    } else if (ok === false) {
+      ANIME({
+        targets: '#question-card',
+        translateX: [0, -10, 10, -6, 6, 0],
+        duration: 380, easing: 'easeInOutQuad'
+      });
+      ANIME({ targets: '#feedback', opacity: [0, 1], duration: 260, easing: 'easeOutQuad' });
+    }
+  }
+  function animateStats(done, right, wrong) {
+    var d = $('stat-done'), r = $('stat-right'), w = $('stat-wrong');
+    if (!ANIME) { d.textContent = done; r.textContent = right; w.textContent = wrong; return; }
+    var o = { d: prevStats.done, r: prevStats.right, w: prevStats.wrong };
+    ANIME({
+      targets: o,
+      d: done, r: right, w: wrong,
+      round: 1, duration: 480, easing: 'easeOutQuad',
+      update: function () { d.textContent = o.d; r.textContent = o.r; w.textContent = o.w; },
+      complete: function () { d.textContent = done; r.textContent = right; w.textContent = wrong; }
+    });
+  }
+
   /* ---------- 渲染 ---------- */
   var current = null;
 
@@ -231,6 +278,8 @@
 
     var pct = state.order.length ? Math.round(((state.idx + 1) / state.order.length) * 100) : 0;
     $('progress-bar').style.width = pct + '%';
+
+    if (q.id !== lastQid) { lastQid = q.id; animateQuestionIn(); }
   }
 
   function renderFeedback(q, rec) {
@@ -282,15 +331,16 @@
       updateStats();
     }
     render();
+    animateFeedback(rec.correct);
   }
 
   function updateStats() {
-    $('stat-done').textContent = state.session.done;
+    var s2 = state.session;
     $('stat-total').textContent = state.order.length;
-    $('stat-right').textContent = state.session.right;
-    $('stat-wrong').textContent = state.session.wrong;
-    $('stat-rate').textContent = state.session.done
-      ? Math.round(state.session.right / state.session.done * 100) + '%'
+    animateStats(s2.done, s2.right, s2.wrong);
+    prevStats = { done: s2.done, right: s2.right, wrong: s2.wrong };
+    $('stat-rate').textContent = s2.done
+      ? Math.round(s2.right / s2.done * 100) + '%'
       : '—';
   }
 

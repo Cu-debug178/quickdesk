@@ -34,6 +34,7 @@ body {
   background: var(--card); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 16px;
   position: sticky; top: 16px;
+  box-shadow: rgba(99, 99, 99, 0.08) 0 4px 16px 0;
 }
 .panel-block { margin-bottom: 16px; }
 .panel-block:last-child { margin-bottom: 0; }
@@ -60,7 +61,10 @@ body {
 .card {
   background: var(--card); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 22px;
+  box-shadow: rgba(99, 99, 99, 0.08) 0 4px 16px 0;
+  transition: box-shadow .25s;
 }
+.card:hover { box-shadow: rgba(99, 99, 99, 0.16) 0 6px 22px 0; }
 .card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .tag {
   font-size: 12px; padding: 3px 10px; border-radius: 999px;
@@ -102,9 +106,18 @@ body {
   background: #fff; color: var(--ink); font-size: 14px; cursor: pointer;
 }
 .btn:hover { border-color: var(--accent); color: var(--accent); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn.primary:hover { opacity: .9; color: #fff; }
-.btn.primary:disabled { opacity: .5; cursor: not-allowed; }
+/* 改自 Uiverse.io by adamgiebl (hot-catfish-48, MIT)：3D 蓝色按钮 */
+.btn.primary {
+  background: linear-gradient(0deg, rgba(47,111,237,1) 0%, rgba(70,135,252,1) 100%);
+  border: none; border-bottom: 2px solid rgba(47,111,237,1);
+  border-radius: 8px; color: #fff; font-weight: 700;
+  box-shadow: rgba(63,94,251,0.2) 0px 18px 22px -8px;
+  transform: perspective(200px) rotateX(12deg);
+  will-change: transform; transition: all .25s;
+}
+.btn.primary:hover { transform: perspective(180px) rotateX(22deg) translateY(2px); color: #fff; opacity: 1; }
+.btn.primary:active { transform: perspective(170px) rotateX(28deg) translateY(5px); }
+.btn.primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 .btn.ghost { width: 100%; margin-top: 6px; }
 .row-btns { display: flex; gap: 8px; }
 .row-btns .btn { margin-top: 0; }
