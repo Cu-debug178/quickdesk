@@ -198,11 +198,12 @@
     if (isChoice) {
       var box = $('q-options');
       box.innerHTML = '';
-      q.options.forEach(function (opt) {
+      q.options.forEach(function (opt, i) {
         var o = splitOption(opt);
         var div = document.createElement('div');
         div.className = 'option';
-        div.innerHTML = '<span class="opt-key">' + esc(o.key || '·') + '</span><span>' + esc(o.text) + '</span>';
+        div.innerHTML = '<span class="opt-key">' + esc(o.key || '·') + '</span><span>' + esc(o.text) + '</span>' +
+          '<span class="opt-num" title="键盘快捷键">' + (i + 1) + '</span>';
         if (rec.checked) {
           if (o.key === correctKey(q)) div.classList.add('correct');
           else if (o.key === rec.selected) div.classList.add('incorrect');
@@ -309,6 +310,34 @@
     state.answers = {};
     state.session = { done: 0, right: 0, wrong: 0 };
     rebuildOrder(false);
+  });
+
+  /* ---------- 键盘快捷键：1~9/字母选选项，Enter 提交/下一题，←→ 翻题 ---------- */
+  function selectByIndex(i) {
+    if (!current) return;
+    var rec = state.answers[current.id];
+    if (!current.options || rec.checked) return;
+    if (i < 0 || i >= current.options.length) return;
+    rec.selected = splitOption(current.options[i]).key;
+    render();
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.target === $('fill-input') || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (/^[1-9]$/.test(e.key)) { selectByIndex(Number(e.key) - 1); return; }
+    if (/^[a-dA-D]$/.test(e.key)) {
+      var i = 'abcd'.indexOf(e.key.toLowerCase());
+      if (current && i < current.options.length) selectByIndex(i);
+      return;
+    }
+    if (e.key === 'Enter') {
+      var rec = current && state.answers[current.id];
+      if (rec && rec.checked) {
+        if (state.idx < state.order.length - 1) { state.idx++; render(); }
+      } else checkAnswer();
+      return;
+    }
+    if (e.key === 'ArrowLeft' && state.idx > 0) { state.idx--; render(); }
+    if (e.key === 'ArrowRight' && state.idx < state.order.length - 1) { state.idx++; render(); }
   });
 
   /* ---------- 题库切换与启动 ---------- */

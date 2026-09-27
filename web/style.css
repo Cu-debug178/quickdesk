@@ -83,6 +83,12 @@ body {
 .option.correct { border-color: var(--ok); background: #ecfdf3; }
 .option.incorrect { border-color: var(--bad); background: #fef2f2; }
 .option .opt-key { font-weight: 700; color: var(--muted); }
+.option .opt-num {
+  margin-left: auto; flex-shrink: 0;
+  width: 22px; height: 22px; line-height: 22px; text-align: center;
+  border: 1px solid var(--line); border-radius: 6px;
+  font-size: 12px; color: var(--muted); background: var(--bg);
+}
 
 .fill input {
   width: 100%; padding: 12px 14px; font-size: 15px;
