@@ -170,3 +170,33 @@ body {
   cursor: pointer; font-size: 12px; padding: 0 4px;
 }
 .filter-list .del-cat:hover { color: var(--bad); }
+
+/* ---------- 标签 ---------- */
+.tags-row { display: flex; align-items: flex-start; gap: 8px; margin: -4px 0 16px; flex-wrap: wrap; }
+.tags-label { font-size: 14px; }
+.tags-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #fef9c3; color: #854d0e; border: 1px solid #fde68a;
+  border-radius: 999px; padding: 2px 10px; font-size: 12px;
+}
+.tag-pill .pill-x { cursor: pointer; color: #b45309; border: 0; background: none; padding: 0; font-size: 12px; line-height: 1; }
+.tag-pill .pill-x:hover { color: var(--bad); }
+.tag-editor { position: relative; display: inline-block; }
+.tag-editor input {
+  width: 180px; padding: 4px 12px; font-size: 13px;
+  border: 1.5px solid var(--accent); border-radius: 999px; outline: none;
+}
+.tag-suggest {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 100%;
+  background: #fff; border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: rgba(99, 99, 99, 0.18) 0 6px 18px 0; padding: 4px;
+}
+.tag-suggest .sg {
+  display: block; width: 100%; text-align: left; border: 0; background: none;
+  padding: 6px 10px; font-size: 13px; cursor: pointer; border-radius: 6px; color: var(--ink);
+}
+.tag-suggest .sg:hover { background: #eef3fe; color: var(--accent); }
+.tag-suggest .sg-head { font-size: 11px; color: var(--muted); padding: 5px 10px 1px; }
+#tag-add-btn { align-self: center; }
+.filter-list .tag-cnt { margin-left: auto; color: var(--muted); font-size: 12px; }

@@ -8,6 +8,7 @@
   var DEVICE_KEY = 'quizdesk_device_id';
   var BANK_KEY = 'quizdesk_bank_id';
   var SERVER_MODE = false;
+  var QC = window.QuizCore;   // 纯逻辑模块（tests/core.test.js 覆盖）
 
   /* 动效：Anime.js 驱动；用户系统开启"减弱动态效果"时自动禁用 */
   var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -20,6 +21,7 @@
     sources: new Set(),      // 勾选的来源，空 = 全部
     types: new Set(),        // 勾选的题型，空 = 全部
     cats: new Set(),         // 勾选的自定义类别（任一命中即显示）
+    tagSel: new Set(),       // 勾选的标签（任一命中即显示）
     order: [],               // 当前题目 id 顺序
     idx: 0,
     answers: {},             // id -> {selected, input, checked, correct}
@@ -53,6 +55,8 @@
     if (!marks[bankId]) marks[bankId] = { star: [], cats: {} };
     if (!Array.isArray(marks[bankId].star)) marks[bankId].star = [];
     if (!marks[bankId].cats || typeof marks[bankId].cats !== 'object') marks[bankId].cats = {};
+    if (!marks[bankId].tags || typeof marks[bankId].tags !== 'object') marks[bankId].tags = {};
+    if (!Array.isArray(marks[bankId].tagOrder)) marks[bankId].tagOrder = [];
     return marks[bankId];
   }
   function saveMarks() { localStorage.setItem(MARKS_KEY, JSON.stringify(marks)); }
@@ -81,6 +85,22 @@
     delete m().cats[name];
     state.cats.delete(name);
     saveMarks();
+  }
+  function addTag(qid, rawName) {
+    marks[bankId] = QC.addTagToQuestion(m(), qid, rawName);
+    saveMarks();
+  }
+  function removeTag(qid, name) {
+    marks[bankId] = QC.removeTagFromQuestion(m(), qid, name);
+    saveMarks();
+  }
+  function deleteTagAll(name) {
+    marks[bankId] = QC.deleteTag(m(), name);
+    state.tagSel.delete(name);
+    saveMarks();
+  }
+  function questionTags(qid) {
+    return Object.keys(m().tags).filter(function (n) { return (m().tags[n] || []).indexOf(qid) !== -1; });
   }
 
   function deviceId() {
@@ -171,6 +191,11 @@
         });
         if (!inAny) return false;
       }
+      if (state.tagSel.size) {
+        var picked = [];
+        state.tagSel.forEach(function (n) { picked.push(n); });
+        if (QC.questionsForTags(m(), picked).indexOf(q.id) === -1) return false;
+      }
       return true;
     });
     if ($('shuffle').checked) {
@@ -222,6 +247,7 @@
       tf.appendChild(label);
     });
     buildCats();
+    buildTags();
   }
 
   function buildCats() {
@@ -246,6 +272,35 @@
         e.preventDefault();
         delCat(n);
         buildCats();
+        rebuildOrder(false);
+      });
+      box.appendChild(label);
+    });
+  }
+
+  function buildTags() {
+    var box = $('tag-filters');
+    box.innerHTML = '';
+    var names = Object.keys(m().tags);
+    if (!names.length) {
+      box.innerHTML = '<div class="empty-tip2">还没有标签：在题目上点「+ 标签」随手贴（如"易混淆"）。</div>';
+      return;
+    }
+    names.forEach(function (n) {
+      var cnt = (m().tags[n] || []).length;
+      var label = document.createElement('label');
+      label.innerHTML = '<input type="checkbox" value="' + esc(n) + '"' +
+        (state.tagSel.has(n) ? ' checked' : '') + '> <span>🏷 ' + esc(n) + '</span><span class="tag-cnt">' + cnt +
+        '</span><button class="del-cat" title="删除整个标签">✕</button>';
+      label.querySelector('input').addEventListener('change', function () {
+        if (this.checked) state.tagSel.add(n); else state.tagSel.delete(n);
+        rebuildOrder(false);
+      });
+      label.querySelector('.del-cat').addEventListener('click', function (e) {
+        e.preventDefault();
+        if (!window.confirm('删除标签「' + n + '」及其全部关联？')) return;
+        deleteTagAll(n);
+        buildTags();
         rebuildOrder(false);
       });
       box.appendChild(label);
@@ -318,6 +373,7 @@
     var starBtn = $('q-star');
     starBtn.classList.toggle('on', isStarred(q.id));
     starBtn.textContent = isStarred(q.id) ? '★ 重点' : '☆ 重点';
+    renderTagRow(q);
     $('q-stem').textContent = q.stem || '(缺少题干)';
 
     var isChoice = q.options && q.options.length > 0;
@@ -364,6 +420,7 @@
     if (q.id !== lastQid) {
       lastQid = q.id;
       $('cat-pop').classList.add('hidden');
+      $('tag-editor').classList.add('hidden');
       animateQuestionIn();
     }
   }
@@ -482,6 +539,104 @@
     }
   });
 
+  function renderTagRow(q) {
+    var row = $('q-tags-row'), pills = $('q-tags-pills');
+    var names = q ? questionTags(q.id) : [];
+    if (!names.length && $('tag-editor').classList.contains('hidden')) {
+      row.classList.add('hidden');
+      return;
+    }
+    row.classList.remove('hidden');
+    pills.innerHTML = '';
+    names.forEach(function (n) {
+      var pill = document.createElement('span');
+      pill.className = 'tag-pill';
+      pill.innerHTML = esc(n) + '<button class="pill-x" title="从本题移除">✕</button>';
+      pill.querySelector('.pill-x').addEventListener('click', function () {
+        removeTag(q.id, n);
+        renderTagRow(q);
+        buildTags();
+      });
+      pills.appendChild(pill);
+    });
+  }
+  function syncTagUI() {
+    renderTagRow(current);
+    if (!$('tag-editor').classList.contains('hidden')) renderTagSuggest();
+    buildTags();
+  }
+  function openTagEditor() {
+    if (!current) return;
+    $('q-tags-row').classList.remove('hidden');
+    $('tag-editor').classList.remove('hidden');
+    var inp = $('tag-input');
+    inp.value = '';
+    renderTagSuggest();
+    inp.focus();
+  }
+  function closeTagEditor() {
+    $('tag-editor').classList.add('hidden');
+    $('tag-suggest').classList.add('hidden');
+    if (current) renderTagRow(current);
+  }
+  function renderTagSuggest() {
+    var box = $('tag-suggest'), inp = $('tag-input');
+    var q = inp.value.trim();
+    var names = Object.keys(m().tags);
+    var hits = QC.findSimilarTags(q, names);
+    var quick = q ? [] : QC.topTags(m(), 6).filter(function (n) {
+      return questionTags(current.id).indexOf(n) === -1;
+    });
+    box.innerHTML = '';
+    function head(t) {
+      var h = document.createElement('div');
+      h.className = 'sg-head'; h.textContent = t;
+      box.appendChild(h);
+    }
+    if (hits.length) {
+      head(q ? '已有标签' : '全部标签');
+      hits.slice(0, 8).forEach(function (n) {
+        var b = document.createElement('button');
+        b.className = 'sg';
+        b.textContent = (questionTags(current.id).indexOf(n) !== -1 ? '✓ ' : '') + n;
+        b.addEventListener('click', function () { addTag(current.id, n); syncTagUI(); });
+        box.appendChild(b);
+      });
+    }
+    if (quick.length) {
+      head('最近常用');
+      quick.forEach(function (n) {
+        var b = document.createElement('button');
+        b.className = 'sg';
+        b.textContent = '+ ' + n;
+        b.addEventListener('click', function () { addTag(current.id, n); syncTagUI(); });
+        box.appendChild(b);
+      });
+    }
+    box.classList.toggle('hidden', !box.children.length);
+  }
+  $('tag-add-btn').addEventListener('click', function (e) {
+    e.stopPropagation();
+    openTagEditor();
+  });
+  $('tag-input').addEventListener('keydown', function (e) {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      if (QC.normalizeTagName(this.value)) {
+        addTag(current.id, this.value);
+        this.value = '';
+        syncTagUI();
+      }
+    } else if (e.key === 'Escape') closeTagEditor();
+  });
+  $('tag-input').addEventListener('input', function () { renderTagSuggest(); });
+  document.addEventListener('click', function (e) {
+    var ed = $('tag-editor');
+    if (!ed.classList.contains('hidden') && !ed.contains(e.target) && e.target !== $('tag-add-btn')) {
+      closeTagEditor();
+    }
+  });
+
   $('cat-add').addEventListener('click', function () {
     var inp = $('cat-name');
     if (addCat(inp.value)) { inp.value = ''; buildCats(); }
@@ -524,6 +679,7 @@
     if (e.target === $('fill-input') || e.ctrlKey || e.metaKey || e.altKey) return;
     if (/^[1-9]$/.test(e.key)) { selectByIndex(Number(e.key) - 1); return; }
     if (/^[fF]$/.test(e.key) && current) { toggleStar(current.id); render(); return; }
+    if (/^[tT]$/.test(e.key) && current) { openTagEditor(); return; }
     if (/^[a-dA-D]$/.test(e.key)) {
       var i = 'abcd'.indexOf(e.key.toLowerCase());
       if (current && i < current.options.length) selectByIndex(i);
@@ -546,7 +702,7 @@
     questions = bank.questions || [];
     bankId = (doc.bank && doc.bank.id) || bankId;
     collectFacets();
-    state.sources.clear(); state.types.clear(); state.cats.clear();
+    state.sources.clear(); state.types.clear(); state.cats.clear(); state.tagSel.clear();
     state.answers = {};
     state.session = { done: 0, right: 0, wrong: 0 };
     $('bank-name').textContent = ((bank.bank && bank.bank.name) || '题库') +
