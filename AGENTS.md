@@ -13,9 +13,10 @@ Java Web 刷题应用。纯静态前端 + 零依赖 Node 后端，线上地址 h
 
 1. `index.html` 里静态资源版本号必须递增（`?v=2.x`），否则线上缓存不更新
 2. 改完跑 `node --check web/app.js`（或对应 js）
-3. 提交信息格式 `v2.x 中文说明`，一个功能一个提交
-4. 动效统一走 `vendor/anime.min.js`，必须尊重 `prefers-reduced-motion`
-5. 用户数据（重点/类别/标签/错题）存 localStorage，键名以 `quizdesk_` 开头、按题库 id 隔离，见 app.js 的 marks 模块；**不引入框架、不引入构建工具、不引入 npm 依赖**
+3. **纯逻辑一律写进 `web/core.js`（无 DOM/localStorage），并在 `tests/core.test.js` 补测试，`node tests/core.test.js` 必须全绿才能提交（TDD：先写失败测试再实现）**
+4. 提交信息格式 `v2.x 中文说明`，一个功能一个提交
+5. 动效统一走 `vendor/anime.min.js`，必须尊重 `prefers-reduced-motion`
+6. 用户数据（重点/类别/标签/错题）存 localStorage，键名以 `quizdesk_` 开头、按题库 id 隔离，见 app.js 的 marks 模块；**不引入框架、不引入构建工具、不引入 npm 依赖**
 
 ## 部署流程（GitHub Pages）
 

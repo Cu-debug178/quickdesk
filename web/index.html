@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuizDesk · Java Web 刷题</title>
-<link rel="stylesheet" href="style.css?v=2.4">
+<link rel="stylesheet" href="style.css?v=2.5">
 </head>
 <body>
 <header class="topbar">
@@ -37,6 +37,10 @@
       </div>
     </section>
     <section class="panel-block">
+      <h2 class="foldable" data-fold="tags"><span class="caret">▾</span> 标签</h2>
+      <div id="tag-filters" class="filter-list fold-body"></div>
+    </section>
+    <section class="panel-block">
       <h2>模式</h2>
       <label class="switch-row"><input type="checkbox" id="shuffle"> 乱序练习</label>
       <label class="switch-row"><input type="checkbox" id="only-wrong"> 只练错题</label>
@@ -57,7 +61,7 @@
       <div>答对 <b id="stat-right" class="ok">0</b> · 答错 <b id="stat-wrong" class="bad">0</b></div>
       <div>正确率 <b id="stat-rate">—</b></div>
     </section>
-    <footer class="panel-note">键盘操作：按 1~9 或 A~D 选选项，Enter 提交/下一题，←→ 翻题，F 标记重点。题目旁的 ⚠ 表示该题答案来自学生标记、未经核实；缺失答案的题不参与判分。错题记录保存在本机浏览器。</footer>
+    <footer class="panel-note">键盘操作：按 1~9 或 A~D 选选项，Enter 提交/下一题，←→ 翻题，F 标记重点，T 贴标签。题目旁的 ⚠ 表示该题答案来自学生标记、未经核实；缺失答案的题不参与判分。错题记录保存在本机浏览器。</footer>
   </aside>
 
   <main class="main">
@@ -70,9 +74,18 @@
         <span id="q-verify" class="tag warn hidden">⚠ 答案未经核实</span>
         <button id="q-star" class="mini-btn" title="标记/取消重点（快捷键 F）">☆ 重点</button>
         <button id="q-cats" class="mini-btn" title="归入自定义类别">🏷 分类</button>
+        <button id="tag-add-btn" class="mini-btn" title="贴标签（快捷键 T）">+ 标签</button>
         <span class="q-no" id="q-no"></span>
       </div>
       <div id="q-stem" class="stem"></div>
+      <div id="q-tags-row" class="tags-row hidden">
+        <span class="tags-label">🏷</span>
+        <span id="q-tags-pills" class="tags-pills"></span>
+        <span id="tag-editor" class="tag-editor hidden">
+          <input id="tag-input" type="text" placeholder="新标签，Enter 添加" maxlength="20" autocomplete="off">
+          <div id="tag-suggest" class="tag-suggest hidden"></div>
+        </span>
+      </div>
       <div id="q-options" class="options"></div>
       <div id="q-fill" class="fill hidden">
         <input id="fill-input" type="text" placeholder="在此输入答案" autocomplete="off">
@@ -89,8 +102,9 @@
   </main>
 </div>
 
-<script src="data.js?v=2.4"></script>
+<script src="core.js?v=2.5"></script>
+<script src="data.js?v=2.5"></script>
 <script src="vendor/anime.min.js"></script>
-<script src="app.js?v=2.4"></script>
+<script src="app.js?v=2.5"></script>
 </body>
 </html>
